@@ -7,6 +7,7 @@ SETTINGS_FILE = 'src/settings.yml'
 BACKUP_VOLUME = ''
 PROJECTS = []
 SKIP_GIT_REMOTE = True
+IGNORE_FILES = []
 
 if not os.path.isfile(SETTINGS_FILE):
     raise FileNotFoundError("Projects file '{SETTINGS_FILE}' not found.")
@@ -17,6 +18,7 @@ with open(SETTINGS_FILE) as stream:
         PROJECTS = data.get('projects', [])
         BACKUP_VOLUME = data.get('backup_volume', '')
         SKIP_GIT_REMOTE = data.get('skip_git_remote', True)
+        IGNORE_FILES = data.get('ignore', [])
     except yaml.YAMLError as exc:
         print(exc)
 
