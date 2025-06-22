@@ -1,0 +1,6 @@
+backup_volume: "D:\\"
+ignore: 
+  - "/node_modules"
+projects:
+  - name: "Code"
+    path: "C:\\Users\\Tomas\\Documents\\Code"
