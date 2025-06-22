@@ -36,14 +36,16 @@ def getStatus(subdir):
     subdir_path = os.path.join(project.get('path'), subdir)
     if os.path.exists(os.path.join(BACKUP_VOLUME, project.get('name'), subdir)):
         if isUpToDate(subdir_path):
-            status = 'BACKED'
+            return 'BACKED'
         else:
-            status = 'UPDATED'
+            return 'UPDATED'
     else:
-        status = 'NOT_TRACKED'
         if SKIP_GIT_REMOTE and isRemote(subdir_path):
-            status = 'GIT_SKIPPED'
+            return 'GIT_SKIPPED'
+        return 'NOT_TRACKED'
 
+def printStatus(subdir):
+    status = getStatus(subdir)
     color = PROJECT_STATUS[status]['color']
     icon = PROJECT_STATUS[status]['icon']
     print(f"    [{color}{icon}{Style.RESET_ALL}] {color}{subdir}{Style.RESET_ALL}")
@@ -61,5 +63,5 @@ for project in PROJECTS:
     for subdir in subdirs:
         if subdir.startswith('.'): # Skip hidden directories
             continue
-        getStatus(subdir)
+        printStatus(subdir)
 
