@@ -1,7 +1,15 @@
 import os
 from colorama import Fore, Style
-from settings import BACKUP_VOLUME, PROJECTS, SKIP_GIT_REMOTE
+from settings import BACKUP_VOLUME, PROJECTS, SKIP_GIT_REMOTE, IGNORE_FILES
 import subprocess
+
+def should_ignore(path, ignore_list):
+    parts = path.replace(os.sep, '/').split('/')  
+    for ign in ignore_list:
+        ign = ign.lstrip('/')
+        if ign in parts:
+            return True
+    return False
 
 PROJECT_STATUS = {
     'BACKED': {
@@ -12,7 +20,7 @@ PROJECT_STATUS = {
     'UPDATED': {
         'color': Fore.RED,
         'label': 'Changed',
-        'icon': 'N'
+        'icon': 'C'
     },
     'NOT_TRACKED': {
         'color': Fore.YELLOW,
@@ -46,7 +54,6 @@ def isRemote(subdir_path):
 UPTODATE_CACHE = {}
 
 def isUpToDate(subdir_path, project_name):
-    # Cache per project
     if project_name not in UPTODATE_CACHE:
         UPTODATE_CACHE[project_name] = {}
     if subdir_path in UPTODATE_CACHE[project_name]:
@@ -54,13 +61,21 @@ def isUpToDate(subdir_path, project_name):
 
     def sha_dir(path):
         signature = []
-        for root, dirs, files in os.walk(path):
+        for root, dirs, files in os.walk(path, topdown=True):
+            dirs[:] = [
+                d for d in dirs
+                if not should_ignore(os.path.join(root, d), IGNORE_FILES)
+            ]
             for fname in sorted(files):
-                fpath = os.path.join(root, fname)
+                src_file = os.path.join(root, fname)
+
+                if should_ignore(src_file, IGNORE_FILES):
+                    continue
+                
                 try:
-                    stat = os.stat(fpath)
-                    rel_path = os.path.relpath(fpath, path)
-                    signature.append((rel_path, stat.st_size, stat.st_mtime))
+                    stat = os.stat(src_file)
+                    rel = os.path.relpath(src_file, path)
+                    signature.append((rel, stat.st_size, stat.st_mtime))
                 except Exception:
                     continue
         return hash(tuple(signature))
@@ -69,9 +84,11 @@ def isUpToDate(subdir_path, project_name):
     if not os.path.exists(backup_path):
         UPTODATE_CACHE[project_name][subdir_path] = False
         return False
+
     src_sha = sha_dir(subdir_path)
     backup_sha = sha_dir(backup_path)
     result = src_sha == backup_sha
+
     UPTODATE_CACHE[project_name][subdir_path] = result
     return result
 

@@ -18,22 +18,33 @@ def progress_bar(name, progress, i, total):
     else:    
         print(f"{os.path.basename(name)[:20]:20} {bar} ({i + 1}/{total})", end='\r')
 
+
+def should_ignore(path, ignore_list):
+    parts = path.replace(os.sep, '/').split('/')  
+    for ign in ignore_list:
+        ign = ign.lstrip('/')
+        if ign in parts:
+            return True
+    return False
+
 def backup(subdir, project, i, total):
     backup_path = os.path.join(BACKUP_VOLUME, project, os.path.basename(subdir))
     os.makedirs(backup_path, exist_ok=True)
 
-  
     files_to_copy = []
     total_size = 0
 
     for root, dirs, files in os.walk(subdir):
-        dirs[:] = [d for d in dirs if not any(ignored in os.path.join(root, d) for ignored in IGNORE_FILES)]
+        dirs[:] = [
+            d for d in dirs
+            if not should_ignore(os.path.join(root, d), IGNORE_FILES)
+        ]
         for fname in files:
             src_file = os.path.join(root, fname)
             rel_path = os.path.relpath(src_file, subdir)
             dst_file = os.path.join(backup_path, rel_path)
 
-            if any(ignored in src_file for ignored in IGNORE_FILES):
+            if should_ignore(src_file, IGNORE_FILES):
                 continue
 
             try:
@@ -52,19 +63,20 @@ def backup(subdir, project, i, total):
     for src_file, dst_file in files_to_copy:
         os.makedirs(os.path.dirname(dst_file), exist_ok=True)
 
-        file_size = os.path.getsize(src_file)
-        with open(src_file, 'rb') as fsrc, open(dst_file, 'wb') as fdst:
-            while True:
-                chunk = fsrc.read(8192)
-                if not chunk:
-                    break
-                fdst.write(chunk)
-                copied_size += len(chunk)
+        try:
+            with open(src_file, 'rb') as fsrc, open(dst_file, 'wb') as fdst:
+                while True:
+                    chunk = fsrc.read(8192)
+                    if not chunk:
+                        break
+                    fdst.write(chunk)
+                    copied_size += len(chunk)
 
-                progress = copied_size / total_size if total_size else 1.0
-                progress_bar(subdir, progress, i, total)
-        shutil.copystat(src_file, dst_file)
-    
+                    progress = copied_size / total_size if total_size else 1.0
+                    progress_bar(subdir, progress, i, total)
+            shutil.copystat(src_file, dst_file)
+        except Exception as e:
+            continue
 
 for project in UPTODATE_CACHE:
     to_update = [subdir for subdir in UPTODATE_CACHE[project] if not UPTODATE_CACHE[project][subdir]]
